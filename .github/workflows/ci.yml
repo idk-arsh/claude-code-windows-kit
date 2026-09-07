@@ -37,6 +37,12 @@ jobs:
           Set-Location "$env:RUNNER_TEMP\prettier-proj"
           npm init -y | Out-Null
           npm install prettier --no-audit --no-fund
-      - name: Validate settings.example.json and run every suite
-        shell: ${{ matrix.shell }}
-        run: ./tests/run-all.ps1 -Shell ${{ matrix.shell }} -PrettierProject "$env:RUNNER_TEMP\prettier-proj"
+      # `shell:` cannot read the matrix context, so one step per shell, gated by `if:`.
+      - name: Validate settings.example.json and run every suite (powershell)
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: ./tests/run-all.ps1 -Shell powershell -PrettierProject "$env:RUNNER_TEMP\prettier-proj"
+      - name: Validate settings.example.json and run every suite (pwsh)
+        if: matrix.shell == 'pwsh'
+        shell: pwsh
+        run: ./tests/run-all.ps1 -Shell pwsh -PrettierProject "$env:RUNNER_TEMP\prettier-proj"
