@@ -7,6 +7,11 @@
 # missing (rare on Windows) or the session is headless, the balloon is
 # skipped silently and the beep still fires.
 #
+# Claude Code waits for Stop hooks to exit before it hands the prompt back,
+# so this script must return fast. The balloon needs its owning process to
+# stay alive for a few seconds or Windows takes it down again, so the balloon
+# runs in a detached hidden PowerShell and this script exits right away.
+#
 # Reads Claude's Stop-event JSON on stdin, but only to pull the current
 # working directory for the notification title. Never modifies the response.
 
@@ -14,8 +19,10 @@
 $ErrorActionPreference = "SilentlyContinue"
 
 # Beep first. This is the part that must not fail.
-[Console]::Beep(880, 180)
-[Console]::Beep(660, 180)
+try {
+    [Console]::Beep(880, 180)
+    [Console]::Beep(660, 180)
+} catch { }
 
 $raw = [Console]::In.ReadToEnd()
 $project = "Claude Code"
@@ -28,20 +35,32 @@ if ($raw) {
     } catch { }
 }
 
+# Single quotes inside the title would break the child script below.
+$title = $project -replace "'", "''"
+
+$balloon = @"
+`$ErrorActionPreference = 'SilentlyContinue'
 try {
     Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
     Add-Type -AssemblyName System.Drawing -ErrorAction Stop
-
-    $icon = New-Object System.Windows.Forms.NotifyIcon
-    $icon.Icon = [System.Drawing.SystemIcons]::Information
-    $icon.BalloonTipTitle = "$project"
-    $icon.BalloonTipText = "Claude finished a turn."
-    $icon.BalloonTipIcon = [System.Windows.Forms.ToolTipIcon]::Info
-    $icon.Visible = $true
-    $icon.ShowBalloonTip(3000)
-
+    `$icon = New-Object System.Windows.Forms.NotifyIcon
+    `$icon.Icon = [System.Drawing.SystemIcons]::Information
+    `$icon.BalloonTipTitle = '$title'
+    `$icon.BalloonTipText = 'Claude finished a turn.'
+    `$icon.BalloonTipIcon = [System.Windows.Forms.ToolTipIcon]::Info
+    `$icon.Visible = `$true
+    `$icon.ShowBalloonTip(3000)
     Start-Sleep -Milliseconds 3200
-    $icon.Dispose()
+    `$icon.Dispose()
+} catch { }
+"@
+
+try {
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($balloon))
+    Start-Process -FilePath "powershell.exe" -WindowStyle Hidden -ArgumentList @(
+        "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+        "-EncodedCommand", $encoded
+    ) | Out-Null
 } catch { }
 
 exit 0
