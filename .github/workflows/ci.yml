@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    name: PSScriptAnalyzer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: Install-Module PSScriptAnalyzer -Scope CurrentUser -Force -Repository PSGallery
+      - name: Lint every .ps1
+        shell: pwsh
+        run: ./tests/lint.ps1
+
+  test:
+    name: tests (${{ matrix.shell }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shell: [powershell, pwsh]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install ruff for the format-on-edit test
+        shell: pwsh
+        run: pip install ruff
+      - name: Install prettier for the format-on-edit test
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\prettier-proj" | Out-Null
+          Set-Location "$env:RUNNER_TEMP\prettier-proj"
+          npm init -y | Out-Null
+          npm install prettier --no-audit --no-fund
+      - name: Validate settings.example.json and run every suite
+        shell: ${{ matrix.shell }}
+        run: ./tests/run-all.ps1 -Shell ${{ matrix.shell }} -PrettierProject "$env:RUNNER_TEMP\prettier-proj"

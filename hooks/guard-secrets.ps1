@@ -36,8 +36,19 @@ $DenyPatterns = @(
     '(^|[\\/])\.pypirc$'
 )
 
-$raw = [Console]::In.ReadToEnd()
-if (-not $raw) { exit 0 }
+# Claude Code writes the payload as UTF-8. Read the bytes and decode them
+# ourselves: a hook launched without a visible console gets the OEM code
+# page, and [Console]::In would decode non-ASCII paths (and any BOM) wrong.
+$raw = ''
+try {
+    $stdin = [Console]::OpenStandardInput()
+    $buffer = New-Object System.IO.MemoryStream
+    $stdin.CopyTo($buffer)
+    $raw = [System.Text.Encoding]::UTF8.GetString($buffer.ToArray()).TrimStart([char]0xFEFF)
+} catch {
+    exit 0
+}
+if (-not $raw.Trim()) { exit 0 }
 
 try {
     $data = $raw | ConvertFrom-Json

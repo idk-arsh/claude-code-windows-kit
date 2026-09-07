@@ -24,7 +24,13 @@ try {
     [Console]::Beep(660, 180)
 } catch { }
 
-$raw = [Console]::In.ReadToEnd()
+$raw = ''
+try {
+    $stdin = [Console]::OpenStandardInput()
+    $buffer = New-Object System.IO.MemoryStream
+    $stdin.CopyTo($buffer)
+    $raw = [System.Text.Encoding]::UTF8.GetString($buffer.ToArray()).TrimStart([char]0xFEFF)
+} catch { }
 $project = "Claude Code"
 if ($raw) {
     try {
