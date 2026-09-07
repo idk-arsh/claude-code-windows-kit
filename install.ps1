@@ -242,7 +242,14 @@ function Install-KitConfiguration {
             throw "$settingsPath is not valid JSON ($($_.Exception.Message)). Fix or move it and rerun; nothing was changed."
         }
         if ($null -eq $existing) { $existing = [pscustomobject]@{} }
+        # Second precision is enough for people, not for two runs in one second
+        # (a rerun right after a pull, or a test). Never overwrite an earlier backup.
         $backup = $settingsPath + ".bak-" + (Get-Date -Format "yyyyMMdd-HHmmss")
+        $n = 1
+        while (Test-Path -LiteralPath $backup) {
+            $n++
+            $backup = $settingsPath + ".bak-" + (Get-Date -Format "yyyyMMdd-HHmmss") + "-$n"
+        }
         Copy-Item -LiteralPath $settingsPath -Destination $backup
         $summary = Merge-Configuration -Existing $existing -Example $example -KitHookPattern $kitHookPattern
         Write-JsonFile -Object $existing -Path $settingsPath

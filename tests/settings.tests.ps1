@@ -49,7 +49,8 @@ Assert-True -Name 'PostToolUse has an Edit|Write group' -Condition ($matchers.Co
 Assert-True -Name 'Stop has a match-all group' -Condition ($matchers.ContainsKey('Stop|'))
 Assert-True -Name 'four hook entries in total' -Condition ($commands.Count -eq 4) -Detail "count=$($commands.Count)"
 foreach ($c in $commands) {
-    $ok = $c.Type -eq 'command' -and $c.Timeout -is [int] -and $c.Timeout -gt 0 -and $c.Timeout -le 60
+    # ConvertFrom-Json gives [int] on 5.1 and [long] on 7 for the same JSON number.
+    $ok = $c.Type -eq 'command' -and ($c.Timeout -is [int] -or $c.Timeout -is [long]) -and $c.Timeout -gt 0 -and $c.Timeout -le 60
     $ok = $ok -and $c.Command -match '^powershell\.exe -NoProfile -ExecutionPolicy Bypass -File "\$HOME/\.claude/hooks/([a-z-]+\.ps1)"$'
     $script = if ($Matches) { $Matches[1] } else { '' }
     $ok = $ok -and $script -and (Test-Path -LiteralPath (Join-Path $repo "hooks\$script"))
