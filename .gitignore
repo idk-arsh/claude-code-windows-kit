@@ -1,0 +1,7 @@
+*.log
+.claude/
+!settings.example.json
+node_modules/
+.env
+.env.*
+*.tmp
